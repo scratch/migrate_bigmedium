@@ -8,4 +8,5 @@ dependencies[] = migrate
 files[] = bigmedium_cms_migration.module
 files[] = base.inc
 files[] = users.inc
+files[] = big_medium_source.inc
 
