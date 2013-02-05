@@ -9,70 +9,84 @@
  * Migrate Backend Users
  */
 class UserMigration extends BaseMigration {
-    public function __construct() {
+  public function __construct() {
     parent::__construct();
-    $this->description = t('XML feed of wine producers of the world');
-    //$this->dependencies = array('WineRegion', 'WineUser');
+    $this->description = t('Data migration from static shtml.');
 
-    // There isn't a consistent way to automatically identify appropriate "fields"
-    // from an XML feed, so we pass an explicit list of source fields
-    $fields = array(
-      'create_time' => t('User create date'),
-      'name' => t('User name'),
-      'email' => t('User email'),
-      'level' => t('Role of user'),
-    );
-
-    // The source ID here is the one retrieved from the XML listing file, and
-    // used to identify the specific item's file
     $this->map = new MigrateSQLMap($this->machineName,
       array(
         'sourceid' => array(
           'type' => 'varchar',
-          'length' => 4,
+          'length' => 255,
           'not null' => TRUE,
         )
       ),
       MigrateDestinationNode::getKeySchema()
     );
 
-    // IMPORTANT: Do not try this at home! We have included importable files
-    // with the migrate_example module so it can be very simply installed and
-    // run, but you should never include any data you want to keep private
-    // (especially user data like email addresses, phone numbers, etc.) in the
-    // module directory. Your source data should be outside of the webroot, and
-    // should not be anywhere where it may get committed into a revision control
-    // system.
+    $fields = array(
+      'name' => t('Username'),
+      'email' => t('Email'),
+      'password' => t('Password'),
+    );
 
-    // This can also be an URL instead of a file path.
-    $folder = DRUPAL_ROOT . '/' . drupal_get_path('module', 'bigmedium_cms_migration') . '/data';
-    $list_url = $folder . 'index.cgi';
+    $data_folder = DRUPAL_ROOT . '/' . drupal_get_path('module', 'bigmedium_cms_migration') . '/data/users/';
+    $list_url = $data_folder . 'index.cgi';
     // Each ID retrieved from the list URL will be plugged into :id in the
     // item URL to fetch the specific objects.
-    $item_url = $folder . ':id.cgi';
-	$list_dir = array($folder);
-	$base_dir = DRUPAL_ROOT . '/' . drupal_get_path('module', 'bigmedium_cms_migration');
-    // We use the MigrateSourceList class for any source where we obtain the list
-    // of IDs to process separately from the data for each item. The listing
-    // and item are represented by separate classes, so for example we could
-    // replace the XML listing with a file directory listing, or the XML item
-    // with a JSON item.
-    $this->source = new MigrateSourceList(new MigrateListFiles($list_dir , $base_dir , '/(.*\.cgi$)/i'),new MigrateItemFile($base_dir), $fields);
+    $item_url = $data_folder . ':id.cgi';
+    $this->source = new MigrateSourceList(new MigrateListCGI($list_url, NULL),
+      new MigrateItemCGI($item_url), $fields);
 
-    $this->destination = new MigrateDestinationUser();
+    $this->destination = new MigrateDestinationUser(array('md5_passwords' => TRUE));
 
-    // TIP: Note that for XML sources, in addition to the source field passed to
-    // addFieldMapping (the name under which it will be saved in the data row
-    // passed through the migration process) we specify the Xpath used to retrieve
-    // the value from the XML.
-    $this->addFieldMapping('name', 'name');
-    $this->addFieldMapping('created', 'create_time');
+    $this->addFieldMapping('name', 'name')->dedupe('users', 'name');
     $this->addFieldMapping('mail', 'email');
-    $this->addFieldMapping('roles', 'level');
-
-
+    $this->addFieldMapping('pass', 'password');
+    $this->addFieldMapping('is_new')
+      ->defaultValue(TRUE);
+    $this->addFieldMapping('roles', 'role')
+      ->defaultValue(2); // authenticated user
+    $this->addFieldMapping('theme')
+      ->defaultValue('');
+    $this->addFieldMapping('signature')
+      ->defaultValue('');
+    $this->addFieldMapping('signature_format')
+      ->defaultValue('filtered_html');
+    $this->addFieldMapping('created')
+      ->defaultValue(time());
+    $this->addFieldMapping('access')
+      ->defaultValue(0);
+    $this->addFieldMapping('login')
+      ->defaultValue(0);
+    $this->addFieldMapping('status')
+      ->defaultValue(1);
+    $this->addFieldMapping('timezone')
+      ->defaultValue(NULL);
+    $this->addFieldMapping('language')
+      ->defaultValue(t('en')); // e.g.: 'en', 'fr', 'de', ...
+    $this->addFieldMapping('picture')
+      ->defaultValue(0);
+    $this->addFieldMapping('init', 'mail');
   }
- 
+
+  public function prepareRow($row) {
+   // print '<pre>';print_r($row);die();
+    $row->name = $row->filedata['name'];
+    $row->email = $row->filedata['email'];
+    //$row->password = '$P$'.$row->filedata['password'];
+	require_once DRUPAL_ROOT . '/' . variable_get('password_inc', 'includes/password.inc');
+	$old_hash = ('1234');
+	$hash_count_log2 = 0;
+
+	$new_hash = user_hash_password($old_hash, $hash_count_log2);
+
+	if ($new_hash) {
+	  // Indicate an updated password.
+	  $row->password  =  $new_hash;
+	}
+    //print '<pre>';print_r($row);die();
+  }
 }
 
 
