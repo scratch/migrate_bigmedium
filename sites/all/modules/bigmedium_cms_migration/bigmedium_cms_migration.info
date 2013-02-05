@@ -1,0 +1,11 @@
+name = BigMedium CMS Migration
+description = "BigMedium to drupal migration."
+package = "Migration"
+core = 7.x
+dependencies[] = taxonomy
+dependencies[] = migrate
+
+files[] = bigmedium_cms_migration.module
+files[] = base.inc
+files[] = users.inc
+
