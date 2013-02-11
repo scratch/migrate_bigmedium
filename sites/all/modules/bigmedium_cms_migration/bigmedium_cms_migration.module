@@ -1,0 +1,17 @@
+<?php
+define('MOXIEDATA_FOLDER_PATH', variable_get('moxiedata_folder', '/usr/lib/cgi-bin/moxiedata'));
+
+/**
+ * Implements hook_migrate_api().
+ * For migration classes to be recognized by the Migrate module.
+ */
+function bigmedium_cms_migration_migrate_api() {
+  $api = array(
+    'api' => 2,
+    'migrations' => array(
+      'User' => array('class_name' => 'UserMigration'),
+    ),
+  );
+  return $api;
+}
+
